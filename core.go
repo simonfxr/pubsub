@@ -18,8 +18,8 @@ type Event = interface{}
 // The event Bus.
 // Should never be copied!
 type Bus struct {
-	subs hashmap.HashMap // Topic -> *subscriberList
-	noCopy
+	subs   hashmap.HashMap // Topic -> *subscriberList
+	noCopy noCopy
 }
 
 type rawSub = unsafe.Pointer
@@ -50,7 +50,7 @@ type Subscription struct {
 	sl      *subscriberList // read only
 	next    atomicSub       // unlocked reads, locked writes
 	flags   rawflag         // unlocked reads/writes
-	noCopy
+	noCopy  noCopy
 }
 
 type subscriberList struct {
