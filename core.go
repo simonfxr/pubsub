@@ -71,12 +71,13 @@ func NewSizedBus(size int) *Bus {
 
 // Publish an event under a specific topic.
 func (b *Bus) Publish(t Topic, event Event) {
-	sl_, ok := b.subs.Get(t)
+	sl_, ok := b.subs.GetStringKey(t)
 	if !ok {
 		return
 	}
 
 	sl := sl_.(*subscriberList)
+	del := false
 
 	sl.Lock()
 	rep := sl.subs[0].loadRelaxed()
@@ -84,10 +85,12 @@ func (b *Bus) Publish(t Topic, event Event) {
 	if once != nil {
 		sl.subs[1].storeRelaxed(nil)
 	}
-	if rep == nil {
+	del = rep == nil
+	sl.Unlock()
+
+	if del {
 		b.subs.Del(t)
 	}
-	sl.Unlock()
 
 	args := [1]reflect.Value{reflect.ValueOf(event)}
 
@@ -133,8 +136,7 @@ func (b *Bus) subscribe(
 		sub.sl.Lock()
 		if !sub.sl.subs[0].isNil() || !sub.sl.subs[1].isNil() {
 			done = true
-			head := sub.sl.subs[oflag]
-			sub.next = head
+			sub.next = sub.sl.subs[oflag]
 			sub.sl.subs[oflag].storeRelaxed(sub)
 		}
 		sub.sl.Unlock()
@@ -150,11 +152,12 @@ func (b *Bus) subscribe(
 func (b *Bus) Unsubscribe(sub *Subscription) bool {
 
 	// relaxed read is okay
-	if sub.fl().unsubscribed {
+	flags := sub.fl()
+	if flags.unsubscribed {
 		return false
 	}
 
-	sl_, ok := b.subs.Get(sub.sl.topic)
+	sl_, ok := b.subs.GetStringKey(sub.sl.topic)
 	if !ok {
 		return false
 	}
@@ -162,36 +165,36 @@ func (b *Bus) Unsubscribe(sub *Subscription) bool {
 	if sl != sub.sl {
 		return false
 	}
+
 	sl.Lock()
-	defer sl.Unlock()
-
-	flags := sub.fl()
-	if flags.unsubscribed {
-		return false
-	}
-
 	// search for the to be removed subscription
 	// could use double links to avoid the iteration
 	prev := (*Subscription)(nil)
 	head := sub.sl.subs[flags.oflag].loadRelaxed()
+	del := false
 	for head != nil {
 		next := head.next.loadRelaxed()
 		if head == sub {
 			if prev == nil {
 				sub.sl.subs[flags.oflag].storeRelaxed(next)
+				del = sl.subs[0].isNil() && sl.subs[1].isNil()
 			} else {
 				prev.next.store(next)
 			}
-			sub.invoker.onUnsubscribed(sub, sub.arg)
-			if sl.subs[0].isNil() && sl.subs[1].isNil() {
-				b.subs.Del(sl.topic)
-			}
-			sub.setUnsubscribed(flags)
-			return true
+			break
 		}
 		prev, head = head, next
 	}
-	return false
+	sl.Unlock()
+	if head == nil {
+		return false
+	}
+	if del {
+		b.subs.Del(sl.topic)
+	}
+	sub.setUnsubscribed(flags)
+	sub.invoker.onUnsubscribed(sub, sub.arg)
+	return true
 }
 
 func (s *Subscription) fl() flags { return decodeFlags(s.flags) }

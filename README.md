@@ -10,7 +10,8 @@ good fit in one way or another.
 The implementations tries to be scalable by building on a [lock free
 hashtable](https://github.com/cornelk/hashmap) and a custom scalable list of
 subscriptions. To avoid dead looks and interference across unrelated topics no
-locks will be held, this also allows callbacks to unsubscribe them selves.
+locks will be held while calling client code, this also allows callbacks to
+unsubscribe them selves.
 
 # Examples
 

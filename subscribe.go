@@ -19,11 +19,11 @@ import (
 // useful to unsubscribe itself if a certain condition is met
 type Callback = interface{}
 
-// A writeable chan:
+// A writable chan:
 // chan T or chan<- T
 type WritableChan = interface{}
 
-// wether a channel subscription should close the target channel when unsubscribing
+// whether a channel subscription should close the target channel when unsubscribing
 type CloseFlag bool
 
 // Close the channel when unsubscribing
@@ -49,7 +49,7 @@ func (b *Bus) SubscribeOnce(t Topic, cb Callback) *Subscription {
 
 // Subscribe to a topic with a callback.
 // The callback may be invoked multiple times, each invocation in its own goroutine.
-// Callback invocations can overlap independet of overlapping publishers.
+// Callback invocations can overlap independent of overlapping publishers.
 func (b *Bus) SubscribeAsync(t Topic, cb Callback) *Subscription {
 	return b.subscribe(t, asyncInvoker, checkCb(cb), false)
 }
@@ -87,7 +87,7 @@ func (b *Bus) SubscribeChanOnce(t Topic, ch WritableChan, close CloseFlag) *Subs
 // published or the abort channel is written to / closed. abort can be a nil
 // channel in which case this method blocks indefinitely until an event is
 // published.
-// Returns the event and a flag indicating wether an event was received.
+// Returns the event and a flag indicating whether an event was received.
 func (b *Bus) SubscribeOnceWait(t Topic, abort <-chan struct{}) (event Event, ok bool) {
 	evchan := make(chan interface{}, 1)
 	sub := b.SubscribeChanOnce(t, evchan, true)

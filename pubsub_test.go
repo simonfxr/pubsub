@@ -1,6 +1,7 @@
 package pubsub
 
 import (
+	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -214,15 +215,14 @@ func TestSubscribeChanWait(t *testing.T) {
 		close(done)
 	}()
 
-loop:
-	for {
-		select {
-		case <-done:
-			break loop
-		default:
-			bus.Publish("topic", Ev{1})
-		}
-	}
+	// hacky way of ensuring that the subscriber go routine is subscribed before
+	// we do a publish
+	runtime.Gosched()
+	runtime.Gosched()
+	runtime.Gosched()
+
+	bus.Publish("topic", Ev{1})
+	<-done
 
 	assert.Equal(ev, Ev{1})
 	assert.Equal(ok, true)
