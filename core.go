@@ -84,8 +84,9 @@ func (b *Bus) Publish(t Topic, event Event) {
 	once := sl.subs[1].loadRelaxed()
 	if once != nil {
 		sl.subs[1].storeRelaxed(nil)
+		// delete if we consumed all remaining subscriptions
+		del = rep == nil
 	}
-	del = rep == nil
 	sl.Unlock()
 
 	if del {
