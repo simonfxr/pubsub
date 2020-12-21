@@ -7,11 +7,14 @@ intended to be used in highly concurrent environments. While there are already
 quite a few different implementations in go (see below), all proved to be not a
 good fit in one way or another.
 
-The implementations tries to be scalable by building on a [lock free
+~~The implementations tries to be scalable by building on a [lock free
 hashtable](https://github.com/cornelk/hashmap) and a custom scalable list of
-subscriptions. To avoid dead looks and interference across unrelated topics no
-locks will be held while calling client code, this also allows callbacks to
-unsubscribe them selves.
+subscriptions.~~ Currently golang's sync.Map is used, since there is a
+bug in the lockfree hashtable.
+
+To avoid dead looks and interference across unrelated topics no locks will be
+held while calling client code, this also allows callbacks to unsubscribe them
+selves.~~
 
 # Examples
 

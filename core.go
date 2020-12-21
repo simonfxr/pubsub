@@ -5,8 +5,6 @@ import (
 	"sync"
 	a "sync/atomic"
 	"unsafe"
-
-	"github.com/cornelk/hashmap"
 )
 
 // A simple string used to describe a topic
@@ -18,8 +16,7 @@ type Event = interface{}
 // The event Bus.
 // Should never be copied!
 type Bus struct {
-	subs   hashmap.HashMap // Topic -> *subscriberList
-	noCopy noCopy
+	subs sync.Map
 }
 
 type rawSub = unsafe.Pointer
@@ -66,12 +63,12 @@ func NewBus() *Bus {
 
 // Create a new event bus with a specific hash table size
 func NewSizedBus(size int) *Bus {
-	return &Bus{subs: *hashmap.New(uintptr(size))}
+	return &Bus{}
 }
 
 // Publish an event under a specific topic.
 func (b *Bus) Publish(t Topic, event Event) {
-	sl_, ok := b.subs.GetStringKey(t)
+	sl_, ok := b.subs.Load(t)
 	if !ok {
 		return
 	}
@@ -90,7 +87,7 @@ func (b *Bus) Publish(t Topic, event Event) {
 	sl.Unlock()
 
 	if del {
-		b.subs.Del(t)
+		b.subs.Delete(t)
 	}
 
 	args := [1]reflect.Value{reflect.ValueOf(event)}
@@ -128,7 +125,7 @@ func (b *Bus) subscribe(
 		nsl := &subscriberList{topic: t}
 		nsl.subs[oflag].storeRelaxed(sub)
 		sub.sl = nsl
-		sl_, loaded := b.subs.GetOrInsert(t, nsl)
+		sl_, loaded := b.subs.LoadOrStore(t, nsl)
 		if !loaded {
 			return sub
 		}
@@ -158,7 +155,7 @@ func (b *Bus) Unsubscribe(sub *Subscription) bool {
 		return false
 	}
 
-	sl_, ok := b.subs.GetStringKey(sub.sl.topic)
+	sl_, ok := b.subs.Load(sub.sl.topic)
 	if !ok {
 		return false
 	}
@@ -191,7 +188,7 @@ func (b *Bus) Unsubscribe(sub *Subscription) bool {
 		return false
 	}
 	if del {
-		b.subs.Del(sl.topic)
+		b.subs.Delete(sl.topic)
 	}
 	sub.setUnsubscribed(flags)
 	sub.invoker.onUnsubscribed(sub, sub.arg)

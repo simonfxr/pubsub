@@ -3,6 +3,7 @@ package pubsub
 import (
 	"runtime"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -219,6 +220,7 @@ func TestSubscribeChanWait(t *testing.T) {
 	// we do a publish
 	runtime.Gosched()
 	runtime.Gosched()
+	time.Sleep(60 * time.Millisecond)
 	runtime.Gosched()
 
 	bus.Publish("topic", Ev{1})
